@@ -1,25 +1,36 @@
 import { TaskService } from "./../services/TaskService";
-
+import { Request, Response } from "express";
 export class TaskController {
   constructor(private readonly taskService: TaskService) {}
 
-  createTask = async (req, res) => {
-    await res.json(this.taskService.createTask(req, res));
+  createTask = async (req: any, res: Response) => {
+    const dataObject = { ...req.body, owner: req.user._id };
+
+    res.json(await this.taskService.createTask(dataObject));
   };
 
-  getTasks = async (req, res) => {
-    await res.json(this.taskService.getTasks(req, res));
+  getTasks = async (req: any, res: Response) => {
+    const ownerId = req.user._id;
+    res.json(await this.taskService.getTasks(ownerId));
   };
 
-  getTaskById = async (req, res) => {
-    await res.json(this.taskService.getTaskById(req, res));
+  getTaskById = async (req: any, res: Response) => {
+    const taskId = req.params.id;
+    const ownerId = req.user._id;
+    res.json(await this.taskService.getTaskById(taskId, ownerId));
   };
 
-  updateTask = async (req, res) => {
-    await res.json(this.taskService.updateTask(req, res));
+  updateTask = async (req: any, res: Response) => {
+    const body = req.body;
+    const updates = Object.keys(req.body);
+    const taskId = req.params.id;
+    const ownerId = req.user._id.toString();
+    res.json(await this.taskService.updateTask(updates, taskId, ownerId, body));
   };
 
-  deleteTask = async (req, res) => {
-    await res.json(this.taskService.deleteTask(req, res));
+  deleteTask = async (req: any, res: Response) => {
+    const taskId = req.params.id;
+    const ownerId = req.user._id;
+    res.json(await this.taskService.deleteTask(taskId, ownerId));
   };
 }

@@ -1,0 +1,26 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const UserRepository_1 = require("./../repositories/UserRepository");
+const UserService_1 = require("./../services/UserService");
+const UserController_1 = require("./../controllers/UserController");
+const express_1 = require("express");
+const auth_1 = __importDefault(require("../middleware/auth"));
+const userRouter = (0, express_1.Router)();
+const userRepository = new UserRepository_1.UserRepository();
+const userService = new UserService_1.UserService(userRepository);
+const userController = new UserController_1.UserController(userService);
+// userRouter.get("/users/:id", userController.getUser);
+userRouter.get("/users/me", auth_1.default, userController.getUser);
+userRouter.post("/users", userController.createUser);
+userRouter.post("/users/login", userController.loginUser);
+userRouter.post("/users/logout", auth_1.default, userController.logoutUser);
+userRouter.post("/users/logoutAll", auth_1.default, userController.logoutAllUser);
+userRouter.patch("/users/me", auth_1.default, userController.updateUser);
+userRouter.delete("/users/me", auth_1.default, userController.deleteLoggedUser);
+// userRouter.post("/users/me/avatar", auth, userController.uploadProfilePic);
+userRouter.delete("/users/me/avatar", auth_1.default, userController.deleteProfilePic);
+userRouter.get("/users/:id/avatar", userController.getProfilePicById);
+exports.default = userRouter;

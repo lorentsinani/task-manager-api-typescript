@@ -1,10 +1,12 @@
-const express = require("express");
-const taskRouter = new express.Router();
-const auth = require("../middleware/auth");
+import { TaskRepository } from "./../repositories/TaskRepository";
+import Router from "express";
+import auth from "../middleware/auth";
 import { TaskController } from "../controllers/TaskController";
 import { TaskService } from "../services/TaskService";
 
-const taskService = new TaskService();
+const taskRepository = new TaskRepository();
+const taskRouter = Router();
+const taskService = new TaskService(taskRepository);
 const taskController = new TaskController(taskService);
 
 taskRouter.post("/tasks", auth, taskController.createTask);

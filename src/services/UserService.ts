@@ -1,93 +1,101 @@
-import User from "../models/UserModel";
-const multer = require("multer");
-const sharp = require("sharp");
+import { UserRepository } from "./../repositories/UserRepository";
+import { User } from "../models/UserModel";
+import multer from "multer";
+import sharp from "sharp";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 export class UserService {
-  createUser = async (req, res): Promise<void> => {
-    const user = new User(req.body);
+  constructor(private userRepository: UserRepository) {}
 
-    try {
-      await user.save();
-      const token = await user.generateAuthToken();
-      res.status(201).send({ user, token });
-    } catch (e) {
-      res.status(400).send(e);
+  findByCredentials = async (email, password) => {
+    const user = await User.findOne({ email }).exec();
+    if (!user) {
+      throw new Error("Cant find user");
     }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      throw new Error("Doesnt match");
+    }
+
+    return user;
   };
 
-  loginUser = async (req, res): Promise<void> => {
-    try {
-      const user = await User.findByCredentials(
-        req.body.email,
-        req.body.password
-      );
-      const token = await user.generateAuthToken();
-      res.send({ user, token });
-    } catch (e) {
-      res.status(400).send();
-    }
+  generateAuthToken = function (user): string {
+    const secretCode = process.env.JWT_SECRET || "";
+    const token = jwt.sign({ _id: user._id.toString() }, secretCode);
+
+    return token;
   };
 
-  logoutUser = async (req, res): Promise<void> => {
-    try {
-      req.user.tokens = req.user.tokens.filter((token) => {
-        return token.token !== req.user.tokens[0].token;
-      });
-      await req.user.save();
+  createUser = async (name, email, password): Promise<any> => {
+    const user = new User({ name, email, password });
+    if (user.isModified("password")) {
+      user.password = await bcrypt.hash(user.password, 8);
 
-      res.send();
-    } catch (e) {
-      res.status(500).send();
-    }
-  };
-
-  logoutAllUser = async (req, res): Promise<void> => {
-    try {
-      req.user.tokens = [];
-
-      await req.user.save();
-      res.send();
-    } catch (e) {
-      res.status(500).send();
-    }
-  };
-
-  getUser = async (req, res): Promise<void> => {
-    res.send(req.user);
-  };
-
-  updateUser = async (req, res): Promise<void> => {
-    const updates = Object.keys(req.body);
-    const allowedUpdates = ["name", "email", "password", "age"];
-    const isValidOperation = updates.every((update) =>
-      allowedUpdates.includes(update)
-    );
-    if (!isValidOperation) {
-      return res.status(400).send({ error: "Invalid updates!" });
-    }
-    try {
-      const user = await User.findById(req.user._id);
-
-      updates.forEach((update) =>
-        user ? ([update] = req.body[update]) : Array
-      );
-
-      if (!user) {
-        res.status(404).send();
+      try {
+        // await user.save();
+        User.create(user);
+        const token = this.generateAuthToken(user);
+        return { user, token };
+      } catch (e) {
+        return e;
       }
-      await req.user.save();
-      res.send(req.user);
-    } catch (e) {
-      res.status(400).send(e);
     }
   };
 
-  deleteLoggedUser = async (req, res): Promise<void> => {
+  loginUser = async (email: string, password: string) => {
+    const user = await this.findByCredentials(email, password);
+    const token = this.generateAuthToken(user);
+
+    user.tokens.push({ token: token });
+
+    this.updateUser(user.id, user.name, user.email, user.password);
+    user.save();
+    return { user, token };
+  };
+
+  logoutUser = async (id): Promise<any> => {
+    const user = await this.userRepository.findUser(id);
+    user.tokens = user.tokens.filter((token) => {
+      return token.token !== user.tokens[0].token;
+    });
+    user.save();
+    return user;
+  };
+
+  logoutAllUser = async (id): Promise<any> => {
+    const user = await this.userRepository.findUser(id);
     try {
-      await req.user.remove();
-      res.send(req.user);
+      user.tokens = [];
+
+      await user.save();
+      return user;
     } catch (e) {
-      res.status(500).send();
+      return e;
+    }
+  };
+
+  getUser = async (req) => {
+    try {
+      return req.user;
+    } catch (e) {
+      return e;
+    }
+  };
+
+  updateUser = async (id, name, email, password): Promise<any> => {
+    const user = new User({ name, email, password });
+    return this.userRepository.updateUser(id, user);
+  };
+
+  deleteLoggedUser = async (id): Promise<any> => {
+    try {
+      return this.userRepository.deleteUser(id);
+    } catch (e) {
+      return e;
     }
   };
 
@@ -126,7 +134,7 @@ export class UserService {
       await req.user.save();
       res.send();
     } catch (error) {
-      res.status(400).send({ error: error.message });
+      res.status(400).send({ error: error });
     }
   };
 

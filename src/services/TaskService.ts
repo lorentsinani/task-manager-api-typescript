@@ -1,110 +1,100 @@
 const express = require("express");
 import Task from "../models/TaskModel";
+import { TaskRepository } from "../repositories/TaskRepository";
 
 export class TaskService {
-  createTask = async (req, res): Promise<void> => {
-    const task = new Task({
-      ...req.body,
-      owner: req.user._id,
-    });
+  constructor(private taskRepository: TaskRepository) {}
+
+  createTask = async (dataObject): Promise<any> => {
+    const task = new Task(dataObject);
 
     try {
       await task.save();
-      res.send(task);
+      return task;
     } catch (e) {
-      res.status(400).send();
+      return e;
     }
   };
 
-  getTasks = async (req, res): Promise<void> => {
-    const match: Object = {};
-    const sort: Object = {};
-
-    if (req.query.completed) {
-      //   match.completed = req.query.completed === "true";
-    }
-
-    if (req.query.sortBy) {
-      const parts = req.query.sortBy.split(":");
-      sort[parts[0]] = parts[1] === "desc" ? -1 : 1;
-    }
-
+  getTasks = async (ownerId): Promise<any> => {
     try {
-      // const tasks = await Task.find({ owner: req.user._id }); -> works also
-      await req.user.populate({
-        path: "tasks",
-        match,
-        options: {
-          limit: parseInt(req.query.limit),
-          skip: parseInt(req.query.skip),
-          sort,
-        },
-      });
-      res.send(req.user.tasks);
-    } catch (e) {
-      res.status(500).send(e.message);
-    }
-  };
-  getTaskById = async (req, res): Promise<void> => {
-    const _id = req.params.id;
+      const tasks = await Task.find({ owner: ownerId });
 
+      return tasks;
+    } catch (e) {
+      return e;
+    }
+
+    // const match: Object = {};
+    // const sort: Object = {};
+
+    // if (req.query.completed) {
+    //   //   match.completed = req.query.completed === "true";
+    // }
+
+    // if (req.query.sortBy) {
+    //   const parts = req.query.sortBy.split(":");
+    //   sort[parts[0]] = parts[1] === "desc" ? -1 : 1;
+    // }
+
+    // try {
+    //   // const tasks = await Task.find({ owner: req.user._id }); -> works also
+    //   await req.user.populate({
+    //     path: "tasks",
+    //     match,
+    //     options: {
+    //       limit: parseInt(req.query.limit),
+    //       skip: parseInt(req.query.skip),
+    //       sort,
+    //     },
+    //   });
+    //   res.send(req.user.tasks);
+    // } catch (e) {
+    //   res.status(500).send(e);
+    // }
+  };
+
+  getTaskById = async (taskId, ownerId): Promise<any> => {
     try {
-      const task = await Task.findOne({ _id, owner: req.user._id });
+      const task = await this.taskRepository.findTask(taskId, ownerId);
 
-      if (!task) {
-        res.status(404).send();
-      }
-      res.send(task);
+      return task;
     } catch (e) {
-      res.status(500).send();
+      return e;
     }
   };
 
-  updateTask = async (req, res): Promise<void> => {
-    const updates = Object.keys(req.body);
+  updateTask = async (updates, taskId, ownerId, body): Promise<any> => {
+    //updates, _id, owner
+
     const allowedUpdates = ["description", "completed"];
     const isValidOperation = updates.every((update) =>
       allowedUpdates.includes(update)
     );
-
     if (!isValidOperation) {
-      res.status(400).send({ error: "Invalid updates!" });
+      throw new Error(`Operation is not valid`);
     }
 
     try {
-      const task = await Task.findOne({
-        _id: req.params.id,
-        owner: req.user._id,
+      const task = await this.taskRepository.findTask(taskId, ownerId);
+
+      updates.forEach((update) => {
+        task ? (task[update] = body[update]) : Array;
       });
-
-      if (!task) {
-        res.status(404).send();
-      }
-
-      updates.forEach((update) =>
-        task ? ([update] = req.body[update]) : Array
-      );
       await task?.save();
-      res.send(task);
+      return task;
     } catch (e) {
-      res.status(500).send(e);
+      return e;
     }
   };
 
-  deleteTask = async (req, res): Promise<void> => {
+  deleteTask = async (taskId, ownerId): Promise<any> => {
     try {
-      const task = await Task.findOneAndDelete({
-        _id: req.params.id,
-        owner: req.user._id,
-      });
+      const task = await this.taskRepository.deleteTask(taskId, ownerId);
 
-      if (!task) {
-        res.status(404).send();
-      }
-
-      res.send(task);
+      return task;
     } catch (e) {
-      res.status(500).send();
+      return e;
     }
   };
 }

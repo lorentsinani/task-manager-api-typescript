@@ -1,12 +1,15 @@
+import { UserRepository } from "./../repositories/UserRepository";
 import { UserService } from "./../services/UserService";
 import { UserController } from "./../controllers/UserController";
-const express = require("express");
-const auth = require("../middleware/auth");
-const userRouter = new express.Router();
+import { Router } from "express";
+import auth from "../middleware/auth";
 
-const userService = new UserService();
+const userRouter = Router();
+const userRepository = new UserRepository();
+const userService = new UserService(userRepository);
 const userController = new UserController(userService);
 
+// userRouter.get("/users/:id", userController.getUser);
 userRouter.get("/users/me", auth, userController.getUser);
 
 userRouter.post("/users", userController.createUser);

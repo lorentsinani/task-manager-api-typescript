@@ -1,0 +1,20 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const TaskRepository_1 = require("./../repositories/TaskRepository");
+const express_1 = __importDefault(require("express"));
+const auth_1 = __importDefault(require("../middleware/auth"));
+const TaskController_1 = require("../controllers/TaskController");
+const TaskService_1 = require("../services/TaskService");
+const taskRepository = new TaskRepository_1.TaskRepository();
+const taskRouter = (0, express_1.default)();
+const taskService = new TaskService_1.TaskService(taskRepository);
+const taskController = new TaskController_1.TaskController(taskService);
+taskRouter.post("/tasks", auth_1.default, taskController.createTask);
+taskRouter.get("/tasks", auth_1.default, taskController.getTasks);
+taskRouter.get("/tasks/:id", auth_1.default, taskController.getTaskById);
+taskRouter.patch("/tasks/:id", auth_1.default, taskController.updateTask);
+taskRouter.delete("/tasks/:id", auth_1.default, taskController.deleteTask);
+exports.default = taskRouter;
